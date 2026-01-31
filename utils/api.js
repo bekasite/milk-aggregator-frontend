@@ -20,25 +20,45 @@ const api = axios.create({
 // Instead, use a proper interceptor
 api.interceptors.request.use(
   (config) => {
-    // Only run on client-side
     if (typeof window !== 'undefined') {
       const user = localStorage.getItem('user')
       if (user) {
         try {
           const userData = JSON.parse(user)
-          // If you're using token-based auth
-          if (userData.token) {
-            config.headers.Authorization = `Bearer ${userData.token}`
-          }
-          // If you're using basic auth (not recommended)
-          else if (userData.username && userData.password) {
-            config.auth = {
-              username: userData.username,
-              password: userData.password
+          
+          // Only proceed if we have credentials
+          if (userData.username && userData.password) {
+            
+            // FOR ADMIN ENDPOINTS: Use current admin user's credentials
+            const isAdminEndpoint = config.url.includes('/auth/users') || 
+                                   config.url.includes('/auth/users/') ||
+                                   (config.url.includes('/orders') && 
+                                    !config.url.includes('/my-orders') && 
+                                    !config.url.includes('/delivery'))
+            
+            if (isAdminEndpoint) {
+              console.log(`🔐 Using current admin (${userData.username}) for: ${config.url}`)
+            }
+            
+            // Add credentials based on request type
+            if (config.method === 'get' || config.method === 'delete') {
+              config.params = {
+                ...config.params,
+                username: userData.username,
+                password: userData.password
+              }
+            } else if (config.method === 'post' || config.method === 'put') {
+              if (config.data && typeof config.data === 'object') {
+                config.data = {
+                  ...config.data,
+                  username: userData.username,
+                  password: userData.password
+                }
+              }
             }
           }
         } catch (error) {
-          console.error('Error parsing user data:', error)
+          console.error('Error parsing user:', error)
         }
       }
     }
