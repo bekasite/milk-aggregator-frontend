@@ -1,8 +1,7 @@
-'use client';
+// app/layout.jsx
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import ToastProvider from './ToastProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -16,7 +15,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
         {children}
-        <ToastContainer position="top-right" autoClose={3000} />
+        <ToastProvider />
       </body>
     </html>
   )
