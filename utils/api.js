@@ -26,33 +26,38 @@ api.interceptors.request.use(
         try {
           const userData = JSON.parse(user)
           
-          // Only proceed if we have credentials
           if (userData.username && userData.password) {
+            // EXCLUDE registration endpoint from auth injection
+            const isRegistrationEndpoint = config.url === '/auth/register' || 
+                                         config.url.includes('/auth/register')
             
-            // FOR ADMIN ENDPOINTS: Use current admin user's credentials
-            const isAdminEndpoint = config.url.includes('/auth/users') || 
-                                   config.url.includes('/auth/users/') ||
-                                   (config.url.includes('/orders') && 
-                                    !config.url.includes('/my-orders') && 
-                                    !config.url.includes('/delivery'))
-            
-            if (isAdminEndpoint) {
-              console.log(`🔐 Using current admin (${userData.username}) for: ${config.url}`)
-            }
-            
-            // Add credentials based on request type
-            if (config.method === 'get' || config.method === 'delete') {
-              config.params = {
-                ...config.params,
-                username: userData.username,
-                password: userData.password
+            // Don't add admin credentials to registration requests
+            if (!isRegistrationEndpoint) {
+              // FOR ADMIN ENDPOINTS: Use current admin user's credentials
+              const isAdminEndpoint = config.url.includes('/auth/users') || 
+                                     config.url.includes('/auth/users/') ||
+                                     (config.url.includes('/orders') && 
+                                      !config.url.includes('/my-orders') && 
+                                      !config.url.includes('/delivery'))
+              
+              if (isAdminEndpoint) {
+                console.log(`🔐 Using current admin (${userData.username}) for: ${config.url}`)
               }
-            } else if (config.method === 'post' || config.method === 'put') {
-              if (config.data && typeof config.data === 'object') {
-                config.data = {
-                  ...config.data,
+              
+              // Add credentials based on request type
+              if (config.method === 'get' || config.method === 'delete') {
+                config.params = {
+                  ...config.params,
                   username: userData.username,
                   password: userData.password
+                }
+              } else if (config.method === 'post' || config.method === 'put') {
+                if (config.data && typeof config.data === 'object') {
+                  config.data = {
+                    ...config.data,
+                    username: userData.username,
+                    password: userData.password
+                  }
                 }
               }
             }
