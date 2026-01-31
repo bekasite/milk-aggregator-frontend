@@ -48,18 +48,27 @@ api.interceptors.request.use(
 )
 
 // Keep your response interceptor
+// api.js - Add more detailed logging
 api.interceptors.response.use(
   (response) => {
     console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`)
     return response
   },
   (error) => {
+    console.log('❌ API Error Details:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers
+    })
+    
     if (error.response?.status === 401) {
-      console.log('Authentication failed, redirecting...')
+      console.log('🔄 Authentication failed, redirecting to login...')
       if (typeof window !== 'undefined') {
         localStorage.removeItem('user')
         localStorage.removeItem('cart')
-        window.location.href = '/login'
+        // Use replace instead of href to avoid redirect loops
+        window.location.replace('/login')
       }
     }
     return Promise.reject(error)

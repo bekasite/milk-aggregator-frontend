@@ -10,39 +10,49 @@ export default function Layout({ children, role }) {
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  useEffect(() => {
-    const checkAuth = () => {
-      const userStr = localStorage.getItem('user')
-      
-      if (!userStr) {
-        console.log('No user found in localStorage')
-        router.push('/login')
+// In your Layout component, replace the auth check logic:
+
+useEffect(() => {
+  const checkAuth = () => {
+    const userStr = localStorage.getItem('user')
+    
+    if (!userStr) {
+      console.log('No user found in localStorage')
+      router.push('/login')
+      return
+    }
+
+    try {
+      const userData = JSON.parse(userStr)
+      console.log('User found:', userData.username, 'Role:', userData.role)
+      setUser(userData)
+
+      // Check if user has access to this route
+      if (role && userData.role !== role) {
+        console.log(`Access denied: User role ${userData.role} cannot access ${role} page`)
+        
+        // Redirect to the user's DASHBOARD, not just the root
+        const dashboardRoutes = {
+          'Admin': '/admin/dashboard',
+          'Customer': '/customer/dashboard',
+          'Delivery': '/delivery/dashboard'
+        }
+        
+        const targetRoute = dashboardRoutes[userData.role] || '/login'
+        router.push(targetRoute)
         return
       }
 
-      try {
-        const userData = JSON.parse(userStr)
-        console.log('User found:', userData.username, 'Role:', userData.role)
-        setUser(userData)
-
-        // Check if user has access to this route
-        if (role && userData.role !== role) {
-          console.log(`Access denied: User role ${userData.role} cannot access ${role} page`)
-          router.push(`/${userData.role.toLowerCase()}`)
-          return
-        }
-
-        setLoading(false)
-      } catch (error) {
-        console.error('Error parsing user data:', error)
-        localStorage.removeItem('user')
-        router.push('/login')
-      }
+      setLoading(false)
+    } catch (error) {
+      console.error('Error parsing user data:', error)
+      localStorage.removeItem('user')
+      router.push('/login')
     }
+  }
 
-    checkAuth()
-  }, [router, role])
-
+  checkAuth()
+}, [router, role])
   const handleLogout = () => {
     localStorage.removeItem('user')
     localStorage.removeItem('cart')
