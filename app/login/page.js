@@ -30,19 +30,39 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
   
+    console.log('🔄 Attempting login with:', {
+      username: formData.username,
+      password: formData.password
+    })
+  
     try {
+      console.log('📞 Making API call to /auth/login')
       const response = await api.post('/auth/login', {
         username: formData.username,
         password: formData.password
       })
   
+      console.log('✅ Login response:', response.data)
+      console.log('📦 Full response structure:', {
+        status: response.status,
+        headers: response.headers,
+        data: response.data
+      })
+  
       const userData = response.data.user
       
+      if (!userData) {
+        console.error('❌ No user data in response:', response.data)
+        toast.error('Invalid response from server')
+        return
+      }
+      
       // IMPORTANT: Save the password in localStorage for future authenticated requests
-      // This is required because our backend uses plain text password authentication
       userData.password = formData.password
       
       localStorage.setItem('user', JSON.stringify(userData))
+      console.log('💾 Saved to localStorage:', userData)
+      
       toast.success('Login successful!')
   
       // Redirect based on role
@@ -51,8 +71,26 @@ export default function Login() {
       else router.push('/customer')
   
     } catch (error) {
-      console.error('Login error:', error)
-      toast.error(error.response?.data?.error || 'Login failed')
+      console.error('❌ Login error details:', {
+        message: error.message,
+        response: error.response,
+        config: error.config
+      })
+      
+      if (error.response) {
+        // Server responded with error
+        console.log('📊 Error response data:', error.response.data)
+        console.log('📊 Error response status:', error.response.status)
+        toast.error(error.response.data?.error || `Login failed (${error.response.status})`)
+      } else if (error.request) {
+        // Request made but no response
+        console.log('📡 No response received. Check CORS/network.')
+        toast.error('Cannot connect to server. Check your connection.')
+      } else {
+        // Something else
+        console.log('⚙️ Request setup error:', error.message)
+        toast.error('Login failed: ' + error.message)
+      }
     } finally {
       setLoading(false)
     }
