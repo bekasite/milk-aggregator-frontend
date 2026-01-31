@@ -25,13 +25,13 @@ export default function Home() {
         
         // Define your routes clearly
         const roleRoutes = {
-          'Admin': '/admin/dashboard',
-          'Delivery': '/delivery/dashboard', 
-          'Customer': '/customer/dashboard'
+          'Admin': '/admin',
+          'Delivery': '/delivery', 
+          'Customer': '/customer'
         }
         
         // Default to customer if role not recognized
-        const targetRoute = roleRoutes[userData.role] || '/customer/dashboard'
+        const targetRoute = roleRoutes[userData.role] || '/customer'
         
         console.log(`Redirecting ${userData.role} to ${targetRoute}`)
         router.push(targetRoute)
