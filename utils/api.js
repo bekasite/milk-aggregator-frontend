@@ -7,8 +7,64 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // CRITICAL: Allows cookies to be sent
   timeout: 15000,
 })
+
+// REMOVE the entire development block - it's breaking production!
+// if (process.env.NODE_ENV === 'development') {
+//   console.log('🔧 DEVELOPMENT MODE: Enhanced API handling')
+//   ... rest of the override code
+// }
+
+// Instead, use a proper interceptor
+api.interceptors.request.use(
+  (config) => {
+    // Only run on client-side
+    if (typeof window !== 'undefined') {
+      const user = localStorage.getItem('user')
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          // If you're using token-based auth
+          if (userData.token) {
+            config.headers.Authorization = `Bearer ${userData.token}`
+          }
+          // If you're using basic auth (not recommended)
+          else if (userData.username && userData.password) {
+            config.auth = {
+              username: userData.username,
+              password: userData.password
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error)
+        }
+      }
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+// Keep your response interceptor
+api.interceptors.response.use(
+  (response) => {
+    console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`)
+    return response
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      console.log('Authentication failed, redirecting...')
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user')
+        localStorage.removeItem('cart')
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
 export const getCurrentUser = () => {
   if (typeof window === 'undefined') return null
@@ -24,116 +80,19 @@ export const getCurrentUser = () => {
   }
 }
 
-// DEVELOPMENT MODE OVERRIDES
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔧 DEVELOPMENT MODE: Enhanced API handling')
-  
-  const originalGet = api.get
-  api.get = function(url, config = {}) {
-    console.log(`🌐 GET ${url}`)
-    
-    const user = getCurrentUser()
-    
-    // Add auth credentials based on endpoint
-    let authUrl = url
-    
-    if (user) {
-      if (url.includes('/orders/my-orders')) {
-        authUrl = `${url}?username=${user.username}&password=${user.password}`
-        console.log(`   👤 Customer auth: ${user.username}`)
-      }
-      else if (url.includes('/orders/delivery')) {
-        authUrl = `${url}?username=${user.username}&password=${user.password}`
-        console.log(`   🚚 Delivery auth: ${user.username}`)
-      }
-      else if (url.includes('/orders') && !url.includes('/my-orders') && !url.includes('/delivery')) {
-        // For admin orders, use admin credentials
-        authUrl = `${url}?username=admin&password=admin123`
-        console.log(`   👑 Admin auth for orders list`)
-      }
-      else if (url.includes('/auth/users')) {
-        authUrl = `${url}?username=admin&password=admin123`
-        console.log(`   👑 Admin auth for users`)
-      }
-      else if (url.includes('/delivery/')) {
-        authUrl = `${url}?username=admin&password=admin123`
-        console.log(`   👑 Admin auth for delivery management`)
-      }
-    }
-    
-    return originalGet.call(this, authUrl, config)
-  }
-  
-  // Override POST for orders
-  const originalPost = api.post
-  api.post = function(url, data = {}, config = {}) {
-    console.log(`📮 POST ${url}`)
-    
-    // Add auth to order placement
-    if (url.includes('/orders') && !url.includes('/my-orders') && !url.includes('/delivery')) {
-      const user = getCurrentUser()
-      if (user) {
-        data = {
-          ...data,
-          username: user.username,
-          password: user.password
-        }
-        console.log(`   👤 Added auth for order placement: ${user.username}`)
-      }
-    }
-    
-    return originalPost.call(this, url, data, config)
-  }
-}
-
-// Response interceptor
-api.interceptors.response.use(
-  (response) => {
-    console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`)
-    return response
-  },
-  (error) => {
-    if (error.response) {
-      console.error(`❌ API Error ${error.response.status}:`, error.config?.url)
-      console.error('Error details:', error.response.data)
-      
-      if (error.response.status === 401) {
-        console.log('Authentication failed, redirecting...')
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('user')
-          localStorage.removeItem('cart')
-          window.location.href = '/login'
-        }
-      }
-    } else if (error.request) {
-      console.error('❌ No response received:', error.config?.url)
-    } else {
-      console.error('❌ Request setup error:', error.message)
-    }
-    
-    return Promise.reject(error)
-  }
-)
-
+// Helper functions WITHOUT development overrides
 export const authGet = async (url) => {
   const user = getCurrentUser()
   if (!user) throw new Error('User not authenticated')
   
-  const authUrl = `${url}?username=${user.username}&password=${user.password}`
-  return api.get(authUrl)
+  return api.get(url) // Interceptor will add auth
 }
 
 export const authPost = async (url, data = {}) => {
   const user = getCurrentUser()
   if (!user) throw new Error('User not authenticated')
   
-  const requestData = {
-    ...data,
-    username: user.username,
-    password: user.password
-  }
-  
-  return api.post(url, requestData)
+  return api.post(url, data) // Interceptor will add auth
 }
 
 export default api
