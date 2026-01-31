@@ -7,6 +7,8 @@ export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
+    // Log environment info (development only)
+  
     // Check if user is already logged in
     const user = localStorage.getItem('user')
     if (user) {
